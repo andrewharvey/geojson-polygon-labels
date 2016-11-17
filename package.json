@@ -1,0 +1,27 @@
+{
+  "name": "geojson-polygon-labels",
+  "version": "1.0.0",
+  "description": "Command line tool to generate point labels from GeoJSON polygons",
+  "bin": "bin/geojson-polygon-labels",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/andrewharvey/geojson-polygon-labels.git"
+  },
+  "keywords": [
+    "geojson"
+  ],
+  "author": "Andrew Harvey",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/andrewharvey/geojson-polygon-labels/issues"
+  },
+  "homepage": "https://github.com/andrewharvey/geojson-polygon-labels#readme",
+  "dependencies": {
+    "@turf/area": "^3.5.2",
+    "@turf/helpers": "^3.5.3",
+    "@turf/meta": "^3.5.3",
+    "geojson-flatten": "^0.2.1",
+    "has-flag": "^2.0.0",
+    "polylabel": "^1.0.2"
+  }
+}

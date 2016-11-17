@@ -1,0 +1,60 @@
+#!/usr/bin/env node
+
+const fs = require('fs');
+const hasFlag = require('has-flag');
+const polylabel = require('polylabel');
+const flatten = require('geojson-flatten');
+const turf = {
+    featureEach: require('@turf/meta').featureEach,
+    area: require('@turf/area'),
+    point: require('@turf/helpers').point,
+    featureCollection: require('@turf/helpers').featureCollection
+};
+
+const verbose = hasFlag('-v') || hasFlag('verbose');
+
+if (verbose) console.error('Reading and parsing JSON...');
+var inputGeoJSON = JSON.parse(fs.readFileSync('/dev/stdin'));
+
+// flatten inputGeoJSON into individual polygons
+if (verbose) console.error('Flattening GeoJSON...');
+var flatInputGeoJSON = flatten(inputGeoJSON);
+
+if (verbose) console.error('Generating label features...');
+var labelFeatures = [];
+turf.featureEach(flatInputGeoJSON, (feature) => {
+    if (feature.geometry && feature.geometry.type == 'Polygon') {
+        // find pole of inaccessibility
+        var labelPoint = polylabel(feature.geometry.coordinates);
+
+        // calculate polygon area
+        var area = turf.area(feature)
+
+        // create a new GeoJSON feature from the pole of inaccessibility, the original properties plus an _area property
+        var labelFeature = turf.point(
+            labelPoint,
+            Object.assign(
+                {
+                    _area: area
+                },
+                feature.properties
+            )
+        );
+        labelFeatures.push(labelFeature);
+    }else{
+        if (feature.geometry) {
+            // warn the users that non Polygon features are ignored
+            console.error('Skipping feature with geometry type ' + feature.geometry.type);
+        }else{
+            // only print this when verbose enabled since it's not something a user would need to worry about
+            if (verbose) console.error('Skipping feature with no geometry');
+        }
+    }
+});
+
+// collect all features into a GeoJSON object
+var outputGeoJSON = turf.featureCollection(labelFeatures);
+
+// write GeoJSON to stdout
+if (verbose) console.error('Writting GeoJSON...');
+process.stdout.write(JSON.stringify(outputGeoJSON));
