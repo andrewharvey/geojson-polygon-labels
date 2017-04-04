@@ -1,6 +1,6 @@
 {
   "name": "geojson-polygon-labels",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Command line tool to generate point labels from GeoJSON polygons",
   "bin": "bin/geojson-polygon-labels",
   "repository": {
@@ -21,7 +21,7 @@
     "@turf/helpers": "^3.5.3",
     "@turf/meta": "^3.5.3",
     "geojson-flatten": "^0.2.1",
-    "has-flag": "^2.0.0",
-    "polylabel": "^1.0.2"
+    "polylabel": "^1.0.2",
+    "yargs": "^7.0.2"
   }
 }

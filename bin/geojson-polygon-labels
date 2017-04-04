@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
-const hasFlag = require('has-flag');
+const argv = require('yargs').argv
 const polylabel = require('polylabel');
 const flatten = require('geojson-flatten');
 const turf = {
@@ -11,7 +11,8 @@ const turf = {
     featureCollection: require('@turf/helpers').featureCollection
 };
 
-const verbose = hasFlag('-v') || hasFlag('verbose');
+const verbose = argv.v || argv.verbose;
+const precision = argv.precision || 0.001;
 
 if (verbose) console.error('Reading and parsing JSON...');
 var inputGeoJSON = JSON.parse(fs.readFileSync('/dev/stdin'));
@@ -25,7 +26,7 @@ var labelFeatures = [];
 turf.featureEach(flatInputGeoJSON, (feature) => {
     if (feature.geometry && feature.geometry.type == 'Polygon') {
         // find pole of inaccessibility
-        var labelPoint = polylabel(feature.geometry.coordinates);
+        var labelPoint = polylabel(feature.geometry.coordinates, precision);
 
         // calculate polygon area
         var area = turf.area(feature)

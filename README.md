@@ -10,4 +10,6 @@ Original properties are retained, however an `_area` property is added which is 
 
 ## Command Line
 
-    geojson-polygon-labels < layer.geojson > labels.geojson
+    geojson-polygon-labels [--precision=0.001] < layer.geojson > labels.geojson
+
+Defaults to `0.001` precision since GeoJSON is usually in geographic coordinates.
