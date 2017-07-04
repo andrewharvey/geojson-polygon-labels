@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 const fs = require('fs');
-const argv = require('yargs').argv
+const argv = require('yargs')
+    .demandCommand(1)
+    .argv;
 const polylabel = require('polylabel');
 const flatten = require('geojson-flatten');
 const turf = {
@@ -10,52 +12,59 @@ const turf = {
     point: require('@turf/helpers').point,
     featureCollection: require('@turf/helpers').featureCollection
 };
+const streamFeaturesFromFile = require('@mapbox/stream-features-from-file');
 
 const verbose = argv.v || argv.verbose;
 const precision = argv.precision || 0.001;
+const includeArea = argv['include-area'];
 
 if (verbose) console.error('Reading and parsing JSON...');
-var inputGeoJSON = JSON.parse(fs.readFileSync('/dev/stdin'));
+const featureStream = streamFeaturesFromFile(argv._[0]);
 
-// flatten inputGeoJSON into individual polygons
-if (verbose) console.error('Flattening GeoJSON...');
-var flatInputGeoJSON = flatten(inputGeoJSON);
+let labelFeatures = [];
+let featureCount = 0;
+featureStream.on('data', (feature) => {
+    featureCount++;
+    process.stderr.write('...' + featureCount + "\r");
+    if (feature.geometry) {
+        const flatFeatures = flatten(feature);
+        flatFeatures.forEach((feature) => {
+            if (feature.geometry && feature.geometry.type == 'Polygon') {
+                // find pole of inaccessibility
+                const labelPoint = polylabel(feature.geometry.coordinates, precision);
 
-if (verbose) console.error('Generating label features...');
-var labelFeatures = [];
-turf.featureEach(flatInputGeoJSON, (feature) => {
-    if (feature.geometry && feature.geometry.type == 'Polygon') {
-        // find pole of inaccessibility
-        var labelPoint = polylabel(feature.geometry.coordinates, precision);
+                // calculate polygon area
+                const area = turf.area(feature)
 
-        // calculate polygon area
-        var area = turf.area(feature)
-
-        // create a new GeoJSON feature from the pole of inaccessibility, the original properties plus an _area property
-        var labelFeature = turf.point(
-            labelPoint,
-            Object.assign(
-                {
-                    _area: area
-                },
-                feature.properties
-            )
-        );
-        labelFeatures.push(labelFeature);
-    }else{
-        if (feature.geometry) {
-            // warn the users that non Polygon features are ignored
-            console.error('Skipping feature with geometry type ' + feature.geometry.type);
-        }else{
-            // only print this when verbose enabled since it's not something a user would need to worry about
-            if (verbose) console.error('Skipping feature with no geometry');
-        }
+                // create a new GeoJSON feature from the pole of inaccessibility, the original properties plus an _area property
+                const labelFeature = turf.point(
+                    labelPoint,
+                    Object.assign(
+                        {
+                            _area: Math.round(area / 1000)
+                        },
+                        feature.properties
+                    )
+                );
+                labelFeatures.push(labelFeature);
+            }else{
+                if (feature.geometry) {
+                    // warn the users that non Polygon features are ignored
+                    console.error('Skipping feature with geometry type ' + feature.geometry.type);
+                }else{
+                    // only print this when verbose enabled since it's not something a user would need to worry about
+                    if (verbose) console.error('Skipping feature with no geometry');
+                }
+            }
+        });
     }
 });
 
-// collect all features into a GeoJSON object
-var outputGeoJSON = turf.featureCollection(labelFeatures);
+featureStream.on('end', () => {
+    // collect all features into a GeoJSON object
+    var outputGeoJSON = turf.featureCollection(labelFeatures);
 
-// write GeoJSON to stdout
-if (verbose) console.error('Writting GeoJSON...');
-process.stdout.write(JSON.stringify(outputGeoJSON));
+    // write GeoJSON to stdout
+    if (verbose) console.error('Writting GeoJSON...');
+    process.stdout.write(JSON.stringify(outputGeoJSON));
+});
