@@ -31,7 +31,9 @@ featureStream.on('data', (feature) => {
         flatFeatures.forEach((feature) => {
             if (feature.geometry && feature.geometry.type == 'Polygon') {
                 // find pole of inaccessibility
-                const labelPoint = polylabel(feature.geometry.coordinates, precision);
+                const labelPoint = polylabel(feature.geometry.coordinates, precision).map((coordinate) => {
+                    return Number(coordinate.toFixed(5));
+                });
 
                 // calculate polygon area
                 const area = turf.area(feature)
