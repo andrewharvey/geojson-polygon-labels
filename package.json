@@ -19,6 +19,8 @@
   "dependencies": {
     "@mapbox/stream-features-from-file": "^0.2.0",
     "@turf/area": "^3.5.2",
+    "@turf/center-of-mass": "^4.5.2",
+    "@turf/centroid": "^4.5.2",
     "@turf/helpers": "^3.5.3",
     "@turf/meta": "^3.5.3",
     "geojson-flatten": "^0.2.1",

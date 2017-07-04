@@ -3,6 +3,26 @@
 const fs = require('fs');
 const argv = require('yargs')
     .demandCommand(1)
+    .option('verbose', {
+        alias: 'v',
+        default: false
+    })
+    .option('precision', {
+        alias: 'p',
+        describe: 'Polylabel precision',
+        default: 0.001
+    })
+    .option('include-area', {
+        alias: 'a',
+        describe: 'Adds an _area property in km²',
+        default: false
+    })
+    .option('label', {
+        alias: 'l',
+        choices: ['polylabel', 'centroid', 'center-of-mass'],
+        describe: 'Label placement algorithm',
+        default: 'polylabel'
+    })
     .argv;
 const polylabel = require('polylabel');
 const flatten = require('geojson-flatten');
@@ -10,6 +30,8 @@ const turf = {
     featureEach: require('@turf/meta').featureEach,
     area: require('@turf/area'),
     point: require('@turf/helpers').point,
+    centroid: require('@turf/centroid'),
+    centerOfMass: require('@turf/center-of-mass'),
     featureCollection: require('@turf/helpers').featureCollection
 };
 const streamFeaturesFromFile = require('@mapbox/stream-features-from-file');
@@ -21,6 +43,8 @@ const includeArea = argv['include-area'];
 if (verbose) console.error('Reading and parsing JSON...');
 const featureStream = streamFeaturesFromFile(argv._[0]);
 
+if (verbose) console.error('Using ' + argv.label + ' labelling algorith.');
+
 let labelFeatures = [];
 let featureCount = 0;
 featureStream.on('data', (feature) => {
@@ -31,22 +55,40 @@ featureStream.on('data', (feature) => {
         flatFeatures.forEach((feature) => {
             if (feature.geometry && feature.geometry.type == 'Polygon') {
                 // find pole of inaccessibility
-                const labelPoint = polylabel(feature.geometry.coordinates, precision).map((coordinate) => {
-                    return Number(coordinate.toFixed(5));
-                });
+                let labelPoint;
+                
+                if (argv.label == 'centroid') {
+                    labelPoint = turf.centroid(feature).geometry.coordinates.map((coordinate) => {
+                        return Number(coordinate.toFixed(5));
+                    });
+                } else if (argv.label == 'center-of-mass') {
+                    labelPoint = turf.centerOfMass(feature).geometry.coordinates.map((coordinate) => {
+                        return Number(coordinate.toFixed(5));
+                    });
+                } else {
+                    labelPoint = polylabel(feature.geometry.coordinates, precision).map((coordinate) => {
+                        return Number(coordinate.toFixed(5));
+                    });
+                }
 
-                // calculate polygon area
-                const area = turf.area(feature)
+                let labelProperties = feature.properties;
+
+                if (includeArea) {
+                    // calculate polygon area
+                    const area = turf.area(feature)
+
+                    labelProperties = Object.assign(
+                        {
+                            _area: Math.round(area / 1000)
+                        },
+                        labelProperties
+                    )
+                }
 
                 // create a new GeoJSON feature from the pole of inaccessibility, the original properties plus an _area property
                 const labelFeature = turf.point(
                     labelPoint,
-                    Object.assign(
-                        {
-                            _area: Math.round(area / 1000)
-                        },
-                        feature.properties
-                    )
+                    labelProperties
                 );
                 labelFeatures.push(labelFeature);
             }else{
