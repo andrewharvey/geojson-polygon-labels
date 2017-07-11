@@ -14,7 +14,7 @@ const argv = require('yargs')
     })
     .option('include-area', {
         alias: 'a',
-        describe: 'Adds an _area property in km²',
+        describe: 'Adds an _area property in m²',
         default: false
     })
     .option('label', {
@@ -79,7 +79,7 @@ featureStream.on('data', (feature) => {
 
                     labelProperties = Object.assign(
                         {
-                            _area: Math.round(area / 1000)
+                            _area: Math.round(area)
                         },
                         labelProperties
                     )

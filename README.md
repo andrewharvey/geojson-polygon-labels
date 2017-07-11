@@ -5,7 +5,7 @@
 * [geojson-flatten](https://github.com/mapbox/geojson-flatten) is used to get separate point labels for MultiPolygons and GeometryCollections.
 * Label placement algorithms supported are [polylabel](https://github.com/mapbox/polylabel) *pole of inaccessibility*, [centroid](http://turfjs.org/docs/#centroid) and [center of mass](http://turfjs.org/docs/#centerofmass).
 * Original properties are retained.
-* Optionally add an `_area` property (in km²) which is designed to aid in selecting which labels to show/hide based on the zoom level.
+* Optionally add an `_area` property (in m²) which is designed to aid in selecting which labels to show/hide based on the zoom level.
 
 ## Build
 
