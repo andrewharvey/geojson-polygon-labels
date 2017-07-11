@@ -13,6 +13,7 @@
 
 ## Command Line
 
-    geojson-polygon-labels [--precision=0.001] [--include-area] [--label polylabel] [--verbose] layer.geojson > labels.geojson
+    geojson-polygon-labels [--precision=0.001] [--include-area] [--label=polylabel] [--verbose] layer.geojson > labels.geojson
 
 Defaults to `0.001` precision since GeoJSON is usually in geographic coordinates.
+`--label` options are `polylabel`, `centroid`, `center-of-mass`.
