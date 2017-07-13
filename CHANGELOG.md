@@ -1,3 +1,7 @@
+## 1.0.4
+
+* Fixes to usage and add --help
+
 ## 1.0.3
 
 * Revert undeclared breaking change in units of `_area`.
