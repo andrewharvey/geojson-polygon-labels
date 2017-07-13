@@ -2,9 +2,10 @@
 
 const fs = require('fs');
 const argv = require('yargs')
-    .demandCommand(1)
+    .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--verbose] <layer.geojson> > <labels.geojson>")
     .option('verbose', {
         alias: 'v',
+        boolean: true,
         default: false
     })
     .option('precision', {
@@ -14,6 +15,7 @@ const argv = require('yargs')
     })
     .option('include-area', {
         alias: 'a',
+        boolean: true,
         describe: 'Adds an _area property in m²',
         default: false
     })
@@ -23,7 +25,14 @@ const argv = require('yargs')
         describe: 'Label placement algorithm',
         default: 'polylabel'
     })
+    .help('h', 'Show help.').alias('h', 'help')
     .argv;
+
+if (argv._.length < 1) {
+    console.error('Source file required. Invoke with --help for help.');
+    process.exit(1);
+}
+
 const polylabel = require('polylabel');
 const flatten = require('geojson-flatten');
 const turf = {
