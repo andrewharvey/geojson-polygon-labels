@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+'use strict';
+
 const fs = require('fs');
 const argv = require('yargs')
     .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--verbose] <layer.geojson> > <labels.geojson>")
