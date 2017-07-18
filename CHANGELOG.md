@@ -1,3 +1,7 @@
+## 1.0.5
+
+* Use strict mode so program will run on some node versions
+
 ## 1.0.4
 
 * Fixes to usage and add --help
