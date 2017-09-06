@@ -1,3 +1,8 @@
+## 1.1.0
+
+* Add --by-feature flag to only label the largest part in a MultiPolygon feature #2
+* 'use strict' for compatibility with older versions of node
+
 ## 1.0.4
 
 * Fixes to usage and add --help
