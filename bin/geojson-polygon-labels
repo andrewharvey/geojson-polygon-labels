@@ -2,7 +2,7 @@
 
 const fs = require('fs');
 const argv = require('yargs')
-    .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--verbose] <layer.geojson> > <labels.geojson>")
+    .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--by-feature] [--verbose] <layer.geojson> > <labels.geojson>")
     .option('verbose', {
         alias: 'v',
         boolean: true,
@@ -24,6 +24,12 @@ const argv = require('yargs')
         choices: ['polylabel', 'centroid', 'center-of-mass'],
         describe: 'Label placement algorithm',
         default: 'polylabel'
+    })
+    .option('by-feature', {
+        alias: 'f',
+        boolean: true,
+        describe: 'Use largest polygon of each feature',
+        default: false
     })
     .help('h', 'Show help.').alias('h', 'help')
     .argv;
@@ -48,6 +54,7 @@ const streamFeaturesFromFile = require('@mapbox/stream-features-from-file');
 const verbose = argv.v || argv.verbose;
 const precision = argv.precision || 0.001;
 const includeArea = argv['include-area'];
+const byFeature = argv['by-feature'];
 
 if (verbose) console.error('Reading and parsing JSON...');
 const featureStream = streamFeaturesFromFile(argv._[0]);
@@ -60,7 +67,14 @@ featureStream.on('data', (feature) => {
     featureCount++;
     process.stderr.write('...' + featureCount + "\r");
     if (feature.geometry) {
-        const flatFeatures = flatten(feature);
+        let flatFeatures;
+        if (byFeature) {
+            flatFeatures = [flatten(feature).filter((f) => f.geometry.type == 'Polygon')
+                .reduce((prev, current) => (turf.area(prev) > turf.area(current)) ? prev : current)];
+        }
+        else {
+            flatFeatures = flatten(feature);
+        }
         flatFeatures.forEach((feature) => {
             if (feature.geometry && feature.geometry.type == 'Polygon') {
                 // find pole of inaccessibility
