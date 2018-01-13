@@ -23,9 +23,8 @@ const argv = require('yargs')
     })
     .option('include-minzoom', {
         alias: 'm',
-        boolean: true,
         describe: 'Adds a the tippecanoe minzoom property',
-        default: false
+        default: '0-16'
     })
     .option('label', {
         alias: 'l',
@@ -119,9 +118,12 @@ featureStream.on('data', (feature) => {
                         );
                     }
 
+                    var minZoomMin = Number(includeMinzoom.split('-')[0]);
+                    var minZoomMax = Number(includeMinzoom.split('-')[1]);
+
                     if (includeMinzoom) {
                         tippecanoeProperties = {
-                            minzoom: areaToZoom(area)
+                            minzoom: areaToZoom(area, minZoomMin, minZoomMax)
                         };
                     }
                 }
@@ -157,6 +159,6 @@ featureStream.on('end', () => {
     process.stdout.write(JSON.stringify(outputGeoJSON));
 });
 
-function areaToZoom(area) {
-    return Math.max(0, Math.min(18, Math.round(13.9670060423554 - (0.428698399307115 * Math.log(area, 2)))));
+function areaToZoom(area, min, max) {
+    return Math.max(min, Math.min(max, Math.round(13.9670060423554 - (0.428698399307115 * Math.log(area, 2)))));
 }
