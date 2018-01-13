@@ -21,6 +21,8 @@
     "@turf/area": "^3.5.2",
     "@turf/center-of-mass": "^4.5.2",
     "@turf/centroid": "^4.5.2",
+    "@turf/convex": "^5.1.5",
+    "@turf/explode": "^5.1.5",
     "@turf/helpers": "^3.5.3",
     "@turf/meta": "^3.5.3",
     "geojson-flatten": "^0.2.1",

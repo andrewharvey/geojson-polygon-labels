@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const argv = require('yargs')
-    .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--by-feature] [--include-minzoom] [--verbose] <layer.geojson> > <labels.geojson>")
+    .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--style=explode] [--include-minzoom=0-16] [--verbose] <layer.geojson> > <labels.geojson>")
     .option('verbose', {
         alias: 'v',
         boolean: true,
@@ -19,6 +19,7 @@ const argv = require('yargs')
         alias: 'a',
         boolean: true,
         describe: 'Adds an _area property in m²',
+
         default: false
     })
     .option('include-minzoom', {
@@ -32,11 +33,11 @@ const argv = require('yargs')
         describe: 'Label placement algorithm',
         default: 'polylabel'
     })
-    .option('by-feature', {
-        alias: 'f',
-        boolean: true,
-        describe: 'Use largest polygon of each feature',
-        default: false
+    .option('style', {
+        alias: 's',
+        choices: ['explode', 'largest', 'combine'],
+        describe: 'How to place labels for GeometryCollections or Multi* Geometry types',
+        default: 'explode'
     })
     .help('h', 'Show help.').alias('h', 'help')
     .argv;
@@ -54,14 +55,16 @@ const turf = {
     point: require('@turf/helpers').point,
     centroid: require('@turf/centroid'),
     centerOfMass: require('@turf/center-of-mass'),
-    featureCollection: require('@turf/helpers').featureCollection
+    featureCollection: require('@turf/helpers').featureCollection,
+    convex: require('@turf/convex'),
+    explode: require('@turf/explode')
 };
 const streamFeaturesFromFile = require('@mapbox/stream-features-from-file');
 
 const verbose = argv.v || argv.verbose;
 const precision = argv.precision || 0.001;
 const includeArea = argv['include-area'];
-const byFeature = argv['by-feature'];
+const style = argv['style'];
 const includeMinzoom = argv['include-minzoom'];
 
 if (verbose) console.error('Reading and parsing JSON...');
@@ -69,19 +72,33 @@ const featureStream = streamFeaturesFromFile(argv._[0]);
 
 if (verbose) console.error('Using ' + argv.label + ' labelling algorith.');
 
+if (argv.style == 'explode')
+    console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling all parts.');
+
+if (argv.style == 'single')
+    console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling only the largest part.');
+
+if (argv.style == 'combine')
+    console.error('Combining Multi* and GeometryCollection geometries together and creating one label to cover everything.');
+
 let labelFeatures = [];
 let featureCount = 0;
-featureStream.on('data', (feature) => {
+featureStream.on('data', (inputFeature) => {
     featureCount++;
     process.stderr.write('...' + featureCount + "\r");
-    if (feature.geometry) {
+    if (inputFeature.geometry) {
         let flatFeatures;
-        if (byFeature) {
-            flatFeatures = [flatten(feature).filter((f) => f.geometry.type == 'Polygon')
+        if (argv.style == 'exlode') {
+            // Flatten MultiPoint, MultiPolygon, MultiLineString, and GeometryCollection geometries in GeoJSON files into simple non-complex geometries.
+            flatFeatures = flatten(inputFeature);
+        } else if (argv.style == 'single') {
+            flatFeatures = [flatten(inputFeature).filter((f) => f.geometry.type == 'Polygon')
                 .reduce((prev, current) => (turf.area(prev) > turf.area(current)) ? prev : current)];
-        }
-        else {
-            flatFeatures = flatten(feature);
+        } else if (argv.style == 'combine') {
+            flatFeatures = [turf.convex(turf.explode(inputFeature))];
+        } else {
+            console.error('Unexpected usage of --style');
+            process.exit(1);
         }
         flatFeatures.forEach((feature) => {
             if (feature.geometry && feature.geometry.type == 'Polygon') {
@@ -102,7 +119,7 @@ featureStream.on('data', (feature) => {
                     });
                 }
 
-                let labelProperties = feature.properties;
+                let labelProperties = inputFeature.properties;
                 let tippecanoeProperties;
 
                 if (includeArea || includeMinzoom) {
@@ -141,6 +158,7 @@ featureStream.on('data', (feature) => {
                 if (feature.geometry) {
                     // warn the users that non Polygon features are ignored
                     console.error('Skipping feature with geometry type ' + feature.geometry.type);
+                    console.error(JSON.stringify(feature, null, 2));
                 }else{
                     // only print this when verbose enabled since it's not something a user would need to worry about
                     if (verbose) console.error('Skipping feature with no geometry');
