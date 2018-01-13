@@ -4,7 +4,7 @@
 
 const fs = require('fs');
 const argv = require('yargs')
-    .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--by-feature] [--verbose] <layer.geojson> > <labels.geojson>")
+    .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--by-feature] [--include-minzoom] [--verbose] <layer.geojson> > <labels.geojson>")
     .option('verbose', {
         alias: 'v',
         boolean: true,
@@ -19,6 +19,12 @@ const argv = require('yargs')
         alias: 'a',
         boolean: true,
         describe: 'Adds an _area property in m²',
+        default: false
+    })
+    .option('include-minzoom', {
+        alias: 'm',
+        boolean: true,
+        describe: 'Adds a the tippecanoe minzoom property',
         default: false
     })
     .option('label', {
@@ -57,6 +63,7 @@ const verbose = argv.v || argv.verbose;
 const precision = argv.precision || 0.001;
 const includeArea = argv['include-area'];
 const byFeature = argv['by-feature'];
+const includeMinzoom = argv['include-minzoom'];
 
 if (verbose) console.error('Reading and parsing JSON...');
 const featureStream = streamFeaturesFromFile(argv._[0]);
@@ -97,17 +104,26 @@ featureStream.on('data', (feature) => {
                 }
 
                 let labelProperties = feature.properties;
+                let tippecanoeProperties;
 
-                if (includeArea) {
+                if (includeArea || includeMinzoom) {
                     // calculate polygon area
-                    const area = turf.area(feature)
+                    const area = turf.area(feature);
 
-                    labelProperties = Object.assign(
-                        {
-                            _area: Math.round(area)
-                        },
-                        labelProperties
-                    )
+                    if (includeArea) {
+                        labelProperties = Object.assign(
+                            {
+                                _area: Math.round(area),
+                            },
+                            labelProperties
+                        );
+                    }
+
+                    if (includeMinzoom) {
+                        tippecanoeProperties = {
+                            minzoom: areaToZoom(area)
+                        };
+                    }
                 }
 
                 // create a new GeoJSON feature from the pole of inaccessibility, the original properties plus an _area property
@@ -115,6 +131,9 @@ featureStream.on('data', (feature) => {
                     labelPoint,
                     labelProperties
                 );
+                if (tippecanoeProperties) {
+                    labelFeature.tippecanoe = tippecanoeProperties;
+                }
                 labelFeatures.push(labelFeature);
             }else{
                 if (feature.geometry) {
@@ -137,3 +156,7 @@ featureStream.on('end', () => {
     if (verbose) console.error('Writting GeoJSON...');
     process.stdout.write(JSON.stringify(outputGeoJSON));
 });
+
+function areaToZoom(area) {
+    return Math.max(0, Math.min(18, Math.round(13.9670060423554 - (0.428698399307115 * Math.log(area, 2)))));
+}

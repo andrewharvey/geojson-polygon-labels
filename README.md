@@ -13,8 +13,9 @@
 
 ## Command Line
 
-    geojson-polygon-labels [--precision=0.001] [--include-area] [--label=polylabel] [--by-feature] [--verbose] layer.geojson > labels.geojson
+    geojson-polygon-labels [--precision=0.001] [--include-area] [--label=polylabel] [--by-feature] [--include-minzoom] [--verbose] layer.geojson > labels.geojson
 
-Defaults to `0.001` precision since GeoJSON is usually in geographic coordinates.
-`--label` options are `polylabel`, `centroid`, `center-of-mass`. Pass the `--by-feature`
-flag to get one point per GeoJSON feature.
+ - Defaults to `0.001` precision since GeoJSON is usually in geographic coordinates.
+ - `--label` options are `polylabel`, `centroid`, `center-of-mass`.
+ - Pass the `--by-feature` flag to get one point per GeoJSON feature.
+- `--minzoom` will try to determine a sutiable minzoom for the label to appear at and save it in the `tippecanoe` key for use in tippecanoe.
