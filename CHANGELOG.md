@@ -1,3 +1,9 @@
+## 1.2.0
+
+* Add `--include-minzoom` option to add a tippecanoe minzoom per label
+* Add `--style` option for treating GeometryCollections or MultiPolygon geometries
+* Remove support for `--by-feature`, replaced by `--style`.
+
 ## 1.1.0
 
 * Add `--by-feature` flag to only label the largest part in a MultiPolygon feature #2
