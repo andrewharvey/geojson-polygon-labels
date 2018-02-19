@@ -88,10 +88,10 @@ featureStream.on('data', (inputFeature) => {
     process.stderr.write('...' + featureCount + "\r");
     if (inputFeature.geometry) {
         let flatFeatures;
-        if (argv.style == 'exlode') {
+        if (argv.style == 'explode') {
             // Flatten MultiPoint, MultiPolygon, MultiLineString, and GeometryCollection geometries in GeoJSON files into simple non-complex geometries.
             flatFeatures = flatten(inputFeature);
-        } else if (argv.style == 'single') {
+        } else if (argv.style == 'largest') {
             flatFeatures = [flatten(inputFeature).filter((f) => f.geometry.type == 'Polygon')
                 .reduce((prev, current) => (turf.area(prev) > turf.area(current)) ? prev : current)];
         } else if (argv.style == 'combine') {
