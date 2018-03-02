@@ -19,13 +19,12 @@ const argv = require('yargs')
         alias: 'a',
         boolean: true,
         describe: 'Adds an _area property in m²',
-
         default: false
     })
     .option('include-minzoom', {
         alias: 'm',
-        describe: 'Adds a the tippecanoe minzoom property',
-        default: '0-16'
+        describe: 'Adds the tippecanoe minzoom property. Value in the form min-max where min is the smallest minzoom and max the largest minzoom, For example --include-minzoom=0-16.',
+        default: false
     })
     .option('label', {
         alias: 'l',
@@ -81,6 +80,11 @@ if (argv.style == 'single')
 if (argv.style == 'combine')
     console.error('Combining Multi* and GeometryCollection geometries together and creating one label to cover everything.');
 
+if (includeMinzoom && typeof includeMinzoom === "string" && includeMinzoom.split('-').length != 2) {
+    console.error('--min-zoom argument value should be in the format min-max where min is the smallest possible minzoom and max is the largest possible minzoom. (eg. 5-10 will only show the label from zoom 5 and will always show the label above zoom 10)');
+    process.exit(1);
+}
+
 let labelFeatures = [];
 let featureCount = 0;
 featureStream.on('data', (inputFeature) => {
@@ -135,8 +139,14 @@ featureStream.on('data', (inputFeature) => {
                         );
                     }
 
-                    var minZoomMin = Number(includeMinzoom.split('-')[0]);
-                    var minZoomMax = Number(includeMinzoom.split('-')[1]);
+                    var minZoomMin;
+                    var minZoomMax;
+                    if (includeMinzoom && typeof includeMinzoom === "string") {
+                        minZoomMin = Number(includeMinzoom.split('-')[0]);
+                        minZoomMax = Number(includeMinzoom.split('-')[1]);
+                        if (verbose) console.error(`Using --include-minzoom value of ${minZoomMin}-${minZoomMax}`);
+                    }
+
 
                     if (includeMinzoom) {
                         tippecanoeProperties = {
