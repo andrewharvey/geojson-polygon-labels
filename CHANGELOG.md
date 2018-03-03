@@ -1,3 +1,7 @@
+## 1.2.1
+
+* Fix `--include-minzoom` usage, either provide a min-max value or omit it.
+
 ## 1.2.0
 
 * Add `--include-minzoom` option to add a tippecanoe minzoom per label
