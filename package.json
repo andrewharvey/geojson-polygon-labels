@@ -10,7 +10,7 @@
   "keywords": [
     "geojson"
   ],
-  "author": "Andrew Harvey",
+  "author": "Andrew Harvey <andrew@alantgeo.com.au>",
   "license": "ISC",
   "bugs": {
     "url": "https://github.com/andrewharvey/geojson-polygon-labels/issues"
