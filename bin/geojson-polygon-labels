@@ -3,6 +3,10 @@
 'use strict';
 
 const fs = require('fs');
+const through = require('through');
+const Combiner = require('stream-combiner');
+const geojsonStream = require('geojson-stream');
+
 const argv = require('yargs')
     .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--style=explode] [--include-minzoom=0-16] [--verbose] layer.geojson > labels.geojson")
     .option('verbose', {
@@ -41,11 +45,6 @@ const argv = require('yargs')
     .help('h', 'Show help.').alias('h', 'help')
     .argv;
 
-if (argv._.length < 1) {
-    console.error('Source file required. Invoke with --help for help.');
-    process.exit(1);
-}
-
 const polylabel = require('polylabel');
 const flatten = require('geojson-flatten');
 const turf = {
@@ -58,7 +57,6 @@ const turf = {
     convex: require('@turf/convex'),
     explode: require('@turf/explode')
 };
-const streamFeaturesFromFile = require('@mapbox/stream-features-from-file');
 
 const verbose = argv.v || argv.verbose;
 const precision = argv.precision || 0.001;
@@ -67,9 +65,17 @@ const style = argv['style'];
 const includeMinzoom = argv['include-minzoom'];
 
 if (verbose) console.error('Reading and parsing JSON...');
-const featureStream = streamFeaturesFromFile(argv._[0]);
 
-if (verbose) console.error('Using ' + argv.label + ' labelling algorith.');
+if (verbose) {
+    if (argv._.length === 0 || argv._[0] === '-') {
+        console.error('Reading from stdin')
+    } else {
+        console.error('Reading from ' + argv._[0])
+    }
+}
+const inputStream = (argv._.length === 0 || argv._[0] === '-') ? process.stdin : fs.createReadStream(argv._[0]);
+
+if (verbose) console.error('Using ' + argv.label + ' labelling algorithm.');
 
 if (argv.style == 'explode')
     console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling all parts.');
@@ -85,13 +91,26 @@ if (includeMinzoom && typeof includeMinzoom === "string" && includeMinzoom.split
     process.exit(1);
 }
 
-let labelFeatures = [];
+function polylabelStream() {
+    return Combiner(geojsonStream.parse(),
+        through(function (feature, callback) {
+            this.queue(labelFeature(feature));
+        }),
+        geojsonStream.stringify());
+}
+
 let featureCount = 0;
-featureStream.on('data', (inputFeature) => {
+inputStream
+    .pipe(polylabelStream())
+    .pipe(process.stdout);
+
+function labelFeature(inputFeature) {
     featureCount++;
     process.stderr.write('...' + featureCount + "\r");
+
     if (inputFeature.geometry) {
         let flatFeatures;
+
         if (argv.style == 'explode') {
             // Flatten MultiPoint, MultiPolygon, MultiLineString, and GeometryCollection geometries in GeoJSON files into simple non-complex geometries.
             flatFeatures = flatten(inputFeature);
@@ -104,6 +123,7 @@ featureStream.on('data', (inputFeature) => {
             console.error('Unexpected usage of --style');
             process.exit(1);
         }
+
         flatFeatures.forEach((feature) => {
             if (feature.geometry && feature.geometry.type == 'Polygon') {
                 // find pole of inaccessibility
@@ -163,7 +183,8 @@ featureStream.on('data', (inputFeature) => {
                 if (tippecanoeProperties) {
                     labelFeature.tippecanoe = tippecanoeProperties;
                 }
-                labelFeatures.push(labelFeature);
+                console.log(labelFeature)
+                return labelFeature;
             }else{
                 if (feature.geometry) {
                     // warn the users that non Polygon features are ignored
@@ -176,16 +197,7 @@ featureStream.on('data', (inputFeature) => {
             }
         });
     }
-});
-
-featureStream.on('end', () => {
-    // collect all features into a GeoJSON object
-    var outputGeoJSON = turf.featureCollection(labelFeatures);
-
-    // write GeoJSON to stdout
-    if (verbose) console.error('Writting GeoJSON...');
-    process.stdout.write(JSON.stringify(outputGeoJSON));
-});
+}
 
 function areaToZoom(area, min, max) {
     return Math.max(min, Math.min(max, Math.round(13.9670060423554 - (0.428698399307115 * Math.log(area, 2)))));

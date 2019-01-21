@@ -17,7 +17,6 @@
   },
   "homepage": "https://github.com/andrewharvey/geojson-polygon-labels#readme",
   "dependencies": {
-    "@mapbox/stream-features-from-file": "^0.2.0",
     "@turf/area": "^3.5.2",
     "@turf/center-of-mass": "^4.5.2",
     "@turf/centroid": "^4.5.2",
@@ -26,7 +25,10 @@
     "@turf/helpers": "^3.5.3",
     "@turf/meta": "^3.5.3",
     "geojson-flatten": "^0.2.1",
+    "geojson-stream": "^0.0.1",
     "polylabel": "^1.0.2",
+    "stream-combiner": "^0.2.2",
+    "through": "^2.3.8",
     "yargs": "^7.0.2"
   }
 }
