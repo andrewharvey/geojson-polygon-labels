@@ -3,6 +3,8 @@
 'use strict';
 
 const fs = require('fs');
+const JSONStream = require('JSONStream');
+
 const argv = require('yargs')
     .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--style=explode] [--include-minzoom=0-16] [--verbose] layer.geojson > labels.geojson")
     .option('verbose', {
@@ -41,11 +43,6 @@ const argv = require('yargs')
     .help('h', 'Show help.').alias('h', 'help')
     .argv;
 
-if (argv._.length < 1) {
-    console.error('Source file required. Invoke with --help for help.');
-    process.exit(1);
-}
-
 const polylabel = require('polylabel');
 const flatten = require('geojson-flatten');
 const turf = {
@@ -58,16 +55,12 @@ const turf = {
     convex: require('@turf/convex'),
     explode: require('@turf/explode')
 };
-const streamFeaturesFromFile = require('@mapbox/stream-features-from-file');
 
 const verbose = argv.v || argv.verbose;
 const precision = argv.precision || 0.001;
 const includeArea = argv['include-area'];
 const style = argv['style'];
 const includeMinzoom = argv['include-minzoom'];
-
-if (verbose) console.error('Reading and parsing JSON...');
-const featureStream = streamFeaturesFromFile(argv._[0]);
 
 if (verbose) console.error('Using ' + argv.label + ' labelling algorith.');
 
@@ -85,9 +78,26 @@ if (includeMinzoom && typeof includeMinzoom === "string" && includeMinzoom.split
     process.exit(1);
 }
 
+if (verbose) console.error('Reading and parsing JSON...');
+
+let source;
+if (argv._.length > 0) {
+    // source file argument given
+    source = fs.createReadStream(argv._[0]).on('error', ()=>{
+        console.error("Couldn't open file.");
+        process.exit(1);
+    });
+} else {
+    source = process.stdin;
+}
+
+source.pipe(JSONStream.parse('features.*'))
+    .on('data', labelFeature )
+    .on('error', console.error);
+
 let labelFeatures = [];
 let featureCount = 0;
-featureStream.on('data', (inputFeature) => {
+function labelFeature(inputFeature) {
     featureCount++;
     process.stderr.write('...' + featureCount + "\r");
     if (inputFeature.geometry) {
@@ -163,7 +173,7 @@ featureStream.on('data', (inputFeature) => {
                 if (tippecanoeProperties) {
                     labelFeature.tippecanoe = tippecanoeProperties;
                 }
-                labelFeatures.push(labelFeature);
+                writeLabel(labelFeature)
             }else{
                 if (feature.geometry) {
                     // warn the users that non Polygon features are ignored
@@ -176,16 +186,11 @@ featureStream.on('data', (inputFeature) => {
             }
         });
     }
-});
+}
 
-featureStream.on('end', () => {
-    // collect all features into a GeoJSON object
-    var outputGeoJSON = turf.featureCollection(labelFeatures);
-
-    // write GeoJSON to stdout
-    if (verbose) console.error('Writting GeoJSON...');
-    process.stdout.write(JSON.stringify(outputGeoJSON));
-});
+function writeLabel(feature) {
+    console.log(JSON.stringify(feature))
+}
 
 function areaToZoom(area, min, max) {
     return Math.max(min, Math.min(max, Math.round(13.9670060423554 - (0.428698399307115 * Math.log(area, 2)))));
