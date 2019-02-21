@@ -94,7 +94,9 @@ if (includeMinzoom && typeof includeMinzoom === "string" && includeMinzoom.split
 function polylabelStream() {
     return Combiner(geojsonStream.parse(),
         through(function (feature, callback) {
-            this.queue(labelFeature(feature));
+            labelFeature(feature).forEach((feature) => {
+                this.queue(feature);
+            })
         }),
         geojsonStream.stringify());
 }
@@ -106,6 +108,7 @@ inputStream
 
 function labelFeature(inputFeature) {
     featureCount++;
+    let labeledFeatures = [];
     process.stderr.write('...' + featureCount + "\r");
 
     if (inputFeature.geometry) {
@@ -183,8 +186,7 @@ function labelFeature(inputFeature) {
                 if (tippecanoeProperties) {
                     labelFeature.tippecanoe = tippecanoeProperties;
                 }
-                console.log(labelFeature)
-                return labelFeature;
+                labeledFeatures.push(labelFeature);
             }else{
                 if (feature.geometry) {
                     // warn the users that non Polygon features are ignored
@@ -197,6 +199,8 @@ function labelFeature(inputFeature) {
             }
         });
     }
+
+    return labeledFeatures;
 }
 
 function areaToZoom(area, min, max) {
