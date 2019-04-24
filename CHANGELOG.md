@@ -1,3 +1,7 @@
+## 1.3.0
+
+* Replace mapnik-stream with geojson-stream
+
 ## 1.2.1
 
 * Fix `--include-minzoom` usage, either provide a min-max value or omit it.
