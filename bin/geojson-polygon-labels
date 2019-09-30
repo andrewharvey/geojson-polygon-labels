@@ -80,7 +80,7 @@ if (verbose) console.error('Using ' + argv.label + ' labelling algorithm.');
 if (argv.style == 'explode')
     console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling all parts.');
 
-if (argv.style == 'single')
+if (argv.style == 'largest')
     console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling only the largest part.');
 
 if (argv.style == 'combine')
