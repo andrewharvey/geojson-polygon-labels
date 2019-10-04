@@ -1,3 +1,7 @@
+## 1.3.1
+
+* Fixed option for `--style=largest`
+
 ## 1.3.0
 
 * Replace mapnik-stream with geojson-stream
