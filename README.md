@@ -21,3 +21,4 @@
  - `--include-area` Adds an `_area` property in m².
  - `--style` How to place labels for GeometryCollections or Multi\* Geometry types. Options are `explode`, `largest`, `combine`.
  - `--include-minzoom` will try to determine a suitable minzoom for the label to appear at and save it in the `tippecanoe` key for use in tippecanoe. Value in the form min-max where min is the smallest minzoom and max the largest minzoom.
+ - `--ndjson` Indicates input is in ndjson format.
