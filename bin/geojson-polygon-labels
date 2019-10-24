@@ -6,6 +6,7 @@ const fs = require('fs');
 const through = require('through');
 const Combiner = require('stream-combiner');
 const geojsonStream = require('geojson-stream');
+const ndjson = require('ndjson');
 
 const argv = require('yargs')
     .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--style=explode] [--include-minzoom=0-16] [--verbose] layer.geojson > labels.geojson")
@@ -102,9 +103,22 @@ function polylabelStream() {
 }
 
 let featureCount = 0;
-inputStream
-    .pipe(polylabelStream())
-    .pipe(process.stdout);
+
+if (argv.ndjson) {
+    process.stdin
+        .pipe(ndjson.parse())
+        .on('data', function(feature) {
+            const results = labelFeature(feature);
+            results.forEach((result) => {
+                process.stdout.write(JSON.stringify(result));
+                process.stdout.write('\n');
+            });
+        });
+} else {
+    inputStream
+        .pipe(polylabelStream())
+        .pipe(process.stdout);
+}
 
 function labelFeature(inputFeature) {
     featureCount++;
