@@ -1,3 +1,7 @@
+## 1.4.0
+
+* Add `--ndjson` option to support ndjson input.
+
 ## 1.3.1
 
 * Fixed option for `--style=largest`
