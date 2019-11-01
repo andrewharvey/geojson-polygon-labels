@@ -197,6 +197,11 @@ function labelFeature(inputFeature) {
                     labelPoint,
                     labelProperties
                 );
+
+                if ('id' in inputFeature) {
+                    labelFeature.id = inputFeature.id;
+                }
+
                 if (tippecanoeProperties) {
                     labelFeature.tippecanoe = tippecanoeProperties;
                 }
