@@ -1,3 +1,7 @@
+## 1.4.1
+
+* Include `id` from input GeoJSON Features in output.
+
 ## 1.4.0
 
 * Add `--ndjson` option to support ndjson input.
