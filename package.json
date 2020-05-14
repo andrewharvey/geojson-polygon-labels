@@ -18,6 +18,7 @@
   "homepage": "https://github.com/andrewharvey/geojson-polygon-labels#readme",
   "dependencies": {
     "@turf/area": "^3.5.2",
+    "@turf/bbox": "^6.0.1",
     "@turf/center-of-mass": "^4.5.2",
     "@turf/centroid": "^4.5.2",
     "@turf/convex": "^5.1.5",

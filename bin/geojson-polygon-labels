@@ -26,6 +26,11 @@ const argv = require('yargs')
         describe: 'Adds an _area property in m²',
         default: false
     })
+    .option('include-bbox', {
+        boolean: true,
+        describe: 'Adds a _bbox property in the form [west, south, east, north]',
+        default: false
+    })
     .option('include-minzoom', {
         alias: 'm',
         describe: 'Adds the tippecanoe minzoom property. Value in the form min-max where min is the smallest minzoom and max the largest minzoom, For example --include-minzoom=0-16.',
@@ -56,12 +61,14 @@ const turf = {
     centerOfMass: require('@turf/center-of-mass'),
     featureCollection: require('@turf/helpers').featureCollection,
     convex: require('@turf/convex'),
-    explode: require('@turf/explode')
+    explode: require('@turf/explode'),
+    bbox: require('@turf/bbox').default,
 };
 
 const verbose = argv.v || argv.verbose;
 const precision = argv.precision || 0.001;
 const includeArea = argv['include-area'];
+const includeBbox = argv['include-bbox'];
 const style = argv['style'];
 const includeMinzoom = argv['include-minzoom'];
 
@@ -127,6 +134,7 @@ function labelFeature(inputFeature) {
 
     if (inputFeature.geometry) {
         let flatFeatures;
+        const bbox = includeBbox ? turf.bbox(inputFeature) : undefined;
 
         if (argv.style == 'explode') {
             // Flatten MultiPoint, MultiPolygon, MultiLineString, and GeometryCollection geometries in GeoJSON files into simple non-complex geometries.
@@ -162,6 +170,9 @@ function labelFeature(inputFeature) {
 
                 let labelProperties = inputFeature.properties;
                 let tippecanoeProperties;
+                if (bbox) {
+                    labelProperties._bbox = bbox;
+                }
 
                 if (includeArea || includeMinzoom) {
                     // calculate polygon area
