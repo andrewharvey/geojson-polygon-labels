@@ -6,6 +6,7 @@
 * Label placement algorithms are [polylabel](https://github.com/mapbox/polylabel) *pole of inaccessibility*, [centroid](http://turfjs.org/docs/#centroid) and [center of mass](http://turfjs.org/docs/#centerOfMass).
 * Source feature properties are retained.
 * Optionally adds an `_area` property (in m²)
+* Optionally adds a `_bbox` property (`[west, south, east, north]`)
 * Optionally adds a `tippecanoe` minzoom to each label
 
 ## Install
@@ -14,11 +15,12 @@
 
 ## Command Line
 
-    geojson-polygon-labels [--precision=0.001] [--include-area] [--label=polylabel] [--style=explode] [--include-minzoom=0-16] [--verbose] layer.geojson > labels.geojson
+    geojson-polygon-labels [--precision=0.001] [--include-area] [--include-bbox] [--label=polylabel] [--style=explode] [--include-minzoom=0-16] [--verbose] layer.geojson > labels.geojson
 
  - `--precision` Polylabel precision. Defaults to `0.001` since GeoJSON is usually in geographic coordinates.
  - `--label` Label placement algorithm. Options are `polylabel`, `centroid`, `center-of-mass`.
  - `--include-area` Adds an `_area` property in m².
+ - `--include-bbox` Adds a `_bbox` property as `[west, south, east, north]`
  - `--style` How to place labels for GeometryCollections or Multi\* Geometry types. Options are `explode`, `largest`, `combine`.
  - `--include-minzoom` will try to determine a suitable minzoom for the label to appear at and save it in the `tippecanoe` key for use in tippecanoe. Value in the form min-max where min is the smallest minzoom and max the largest minzoom.
  - `--ndjson` Indicates input is in ndjson format.

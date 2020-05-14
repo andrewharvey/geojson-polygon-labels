@@ -1,3 +1,7 @@
+## 1.5.0
+
+* Add `--include-bbox` option to add a bounding box of the source feature as a `_bbox` property on the label. (h/t [stevage](https://github.com/stevage))
+
 ## 1.4.1
 
 * Include `id` from input GeoJSON Features in output.
