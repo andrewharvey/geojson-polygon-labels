@@ -48,6 +48,11 @@ const argv = require('yargs')
         describe: 'How to place labels for GeometryCollections or Multi* Geometry types',
         default: 'explode'
     })
+    .option('ndjson', {
+        boolean: true,
+        describe: 'Indicates input is in ndjson format',
+        default: false
+    })
     .help('h', 'Show help.').alias('h', 'help')
     .argv;
 
@@ -112,7 +117,7 @@ function polylabelStream() {
 let featureCount = 0;
 
 if (argv.ndjson) {
-    process.stdin
+    inputStream
         .pipe(ndjson.parse())
         .on('data', function(feature) {
             const results = labelFeature(feature);
