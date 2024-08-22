@@ -26,7 +26,7 @@ Features include:
 
 ## Command Line
 
-    geojson-polygon-labels [--precision=0.001] [--include-area] [--include-bbox] [--label=polylabel] [--style=explode] [--include-minzoom=0-16] [--verbose] layer.geojson > labels.geojson
+    geojson-polygon-labels [--polylabel-precision=0.001] [--coordinate-precision=5] [--include-area] [--include-bbox] [--method=polylabel] [--collections=explode] [--include-minzoom=0-16] [--verbose] layer.geojson > labels.geojson
 
  - `--polylabel-precision` Polylabel precision. Defaults to `0.000001`.
  - `--coordinate-precision` Output coordinate precision. Defaults to `5`.
