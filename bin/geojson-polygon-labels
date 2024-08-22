@@ -1,243 +1,341 @@
 #!/usr/bin/env node
 
-'use strict';
+'use strict'
 
-const fs = require('fs');
-const through = require('through');
-const Combiner = require('stream-combiner');
-const geojsonStream = require('geojson-stream');
-const ndjson = require('ndjson');
+import { createReadStream, createWriteStream } from 'fs'
+import through from 'through'
+import Combiner from 'stream-combiner'
+import geojsonStream from 'geojson-stream'
+import ndjson from 'ndjson'
+import _yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
 
-const argv = require('yargs')
-    .usage("$0 [--precision=0.001] [--include-area] [--label=polylabel] [--style=explode] [--include-minzoom=0-16] [--verbose] layer.geojson > labels.geojson")
-    .option('verbose', {
-        alias: 'v',
-        boolean: true,
-        default: false
-    })
-    .option('precision', {
-        alias: 'p',
-        describe: 'Polylabel precision',
-        default: 0.001
-    })
-    .option('include-area', {
-        alias: 'a',
-        boolean: true,
-        describe: 'Adds an _area property in m²',
-        default: false
-    })
-    .option('include-bbox', {
-        boolean: true,
-        describe: 'Adds a _bbox property in the form [west, south, east, north]',
-        default: false
-    })
-    .option('include-minzoom', {
-        alias: 'm',
-        describe: 'Adds the tippecanoe minzoom property. Value in the form min-max where min is the smallest minzoom and max the largest minzoom, For example --include-minzoom=0-16.',
-        default: false
-    })
-    .option('label', {
-        alias: 'l',
-        choices: ['polylabel', 'centroid', 'center-of-mass'],
-        describe: 'Label placement algorithm',
-        default: 'polylabel'
-    })
-    .option('style', {
-        alias: 's',
-        choices: ['explode', 'largest', 'combine'],
-        describe: 'How to place labels for GeometryCollections or Multi* Geometry types',
-        default: 'explode'
-    })
-    .option('ndjson', {
-        boolean: true,
-        describe: 'Indicates input is in ndjson format',
-        default: false
-    })
-    .help('h', 'Show help.').alias('h', 'help')
-    .argv;
+const yargs = _yargs(hideBin(process.argv))
 
-const polylabel = require('polylabel');
-const flatten = require('geojson-flatten');
-const turf = {
-    featureEach: require('@turf/meta').featureEach,
-    area: require('@turf/area'),
-    point: require('@turf/helpers').point,
-    centroid: require('@turf/centroid'),
-    centerOfMass: require('@turf/center-of-mass'),
-    featureCollection: require('@turf/helpers').featureCollection,
-    convex: require('@turf/convex'),
-    explode: require('@turf/explode'),
-    bbox: require('@turf/bbox').default,
-};
+const argv = await yargs
+  .usage("$0 [--polylabel-precision=0.000001] [--coordinate-precision=5] [--include-area] [--include-bbox] [--include-minzoom=0-16] [--method=polylabel|center|center-of-mass|center-mean|center-median|centroid|point-in-polygon] [--collection=explode|largest|combine] [--input-format=geojson|geojsonseq] [--output-format=geojson|geojsonseq] [--verbose] [input.geojson] [output.geojson]")
+  .option('verbose', {
+    alias: 'v',
+    boolean: true,
+    default: false
+  })
+  .option('polylabel-precision', {
+    describe: 'Polylabel precision',
+    default: 0.000001,
+    type: 'number'
+  })
+  .option('coordinate-precision', {
+    describe: 'Coordinate precision of label features',
+    default: 5,
+    type: 'number'
+  })
+  .option('include-area', {
+    alias: 'a',
+    boolean: true,
+    describe: 'Adds an _area property in square meters',
+    default: false
+  })
+  .option('include-bbox', {
+    alias: 'b',
+    boolean: true,
+    describe: 'Adds a _bbox property in the form [west, south, east, north]',
+    default: false
+  })
+  .option('include-minzoom', {
+    describe: 'Adds the tippecanoe minzoom property. Value in the form min-max where min is the smallest minzoom and max the largest minzoom, For example --include-minzoom=0-16.',
+    default: false
+  })
+  .option('method', {
+    alias: 'm',
+    choices: ['polylabel', 'center', 'center-of-mass', 'center-mean', 'center-median', 'centroid', 'point-in-polygon'],
+    describe: 'Label placement method',
+    default: 'polylabel'
+  })
+  .option('collection', {
+    alias: 'c',
+    choices: ['explode', 'largest', 'combine'],
+    describe: 'Method for handling GeometryCollections or Multi* Geometry types',
+    default: 'explode'
+  })
+  .option('input-format', {
+    describe: 'Input format either "geojson" for a GeoJSON FeatureCollection, or "geojsonseq" for GeoJSON Feature objects spearated by newline (LF) characters',
+    choices: ['geojson', 'geojsonseq'],
+    default: 'geojson'
+  })
+  .option('output-format', {
+    describe: 'Output format either "geojson" for a GeoJSON FeatureCollection, or "geojsonseq" for GeoJSON Feature objects separated by newline (LF) characters',
+    choices: ['geojson', 'geojsonseq'],
+    default: 'geojsonseq'
+  })
+  .help('h', 'Show help.').alias('h', 'help')
+  .argv
 
-const verbose = argv.v || argv.verbose;
-const precision = argv.precision || 0.001;
-const includeArea = argv['include-area'];
-const includeBbox = argv['include-bbox'];
-const style = argv['style'];
-const includeMinzoom = argv['include-minzoom'];
+/*
+ * # polylabel
+ * pole of inaccessibility, the most distant internal point from the polygon outline
+ *
+ * # center
+ * simple center by finding the midpoint between the extents of the polygon
+ *
+ * # center-of-mass
+ * imagine the polygon is a sheet of paper, finds where the sheet would balance on a fingertip
+ *
+ * # center-mean
+ * takes the average of all the coordinates, unlike center it is sensitive to clusters and outliers
+ *
+ * # center-median
+ * takes the mean center and tries to find, iteratively, a new point that requires the least amount of travel from all points in the polygon. not as sensitive to outliers as center-mean
+ *
+ * # centroid
+ * find the mean of all the verticies within the polygon
+ *
+ * # point-in-polygon
+ * finds an arbitary point guaranteed to be within the polygon
+ *
+ */
 
-if (verbose) console.error('Reading and parsing JSON...');
+import polylabel from 'polylabel'
+import flatten from 'geojson-flatten'
+
+import { featureEach } from '@turf/meta'
+import { area } from '@turf/area'
+import { point, featureCollection } from '@turf/helpers'
+import { centroid } from '@turf/centroid'
+import { centerOfMass } from '@turf/center-of-mass'
+import { convex } from '@turf/convex'
+import { explode } from '@turf/explode'
+import { bbox } from '@turf/bbox'
+import { pointOnFeature } from '@turf/point-on-feature'
+import { center } from '@turf/center'
+import { centerMedian } from '@turf/center-median'
+import { centerMean } from '@turf/center-mean'
+
+const verbose = argv.v || argv.verbose
+
+if (verbose) console.error('Reading and parsing JSON...')
 
 if (verbose) {
-    if (argv._.length === 0 || argv._[0] === '-') {
-        console.error('Reading from stdin')
-    } else {
-        console.error('Reading from ' + argv._[0])
-    }
+  if (argv._.length === 0 || argv._[0] === '-') {
+    console.error('Reading from stdin')
+  } else {
+    console.error(`Reading from ${argv._[0]}`)
+  }
+
+  if (argv._.length >= 2 && argv._[1] !== '-') {
+    console.error(`Writing to ${argv._[1]}`)
+  } else {
+    console.error('Writing to stdout')
+  }
 }
-const inputStream = (argv._.length === 0 || argv._[0] === '-') ? process.stdin : fs.createReadStream(argv._[0]);
+const inputStream = (argv._.length === 0 || argv._[0] === '-') ? process.stdin : createReadStream(argv._[0])
+const outputStream = (argv._.length >= 2 && argv._[1] !== '-') ? createWriteStream(argv._[1]) : process.stdout
 
-if (verbose) console.error('Using ' + argv.label + ' labelling algorithm.');
+if (verbose) console.error(`Using ${argv.method} method`)
 
-if (argv.style == 'explode')
-    console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling all parts.');
+outputStream.on('error', err => {
+  // output pipe closed, eg `| head`
+  if (err.code === "EPIPE") {
+    process.exit(0)
+  }
+})
 
-if (argv.style == 'largest')
-    console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling only the largest part.');
-
-if (argv.style == 'combine')
-    console.error('Combining Multi* and GeometryCollection geometries together and creating one label to cover everything.');
-
-if (includeMinzoom && typeof includeMinzoom === "string" && includeMinzoom.split('-').length != 2) {
-    console.error('--min-zoom argument value should be in the format min-max where min is the smallest possible minzoom and max is the largest possible minzoom. (eg. 5-10 will only show the label from zoom 5 and will always show the label above zoom 10)');
-    process.exit(1);
-}
-
-function polylabelStream() {
-    return Combiner(geojsonStream.parse(),
-        through(function (feature, callback) {
-            labelFeature(feature).forEach((feature) => {
-                this.queue(feature);
-            })
-        }),
-        geojsonStream.stringify());
+if (argv.outputFormat === 'geojson') {
+  outputStream.write('{"type": "FeatureCollection", "features": [')
 }
 
-let featureCount = 0;
+if (verbose && argv.collection === 'explode')
+  console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling all parts.')
 
-if (argv.ndjson) {
-    inputStream
-        .pipe(ndjson.parse())
-        .on('data', function(feature) {
-            const results = labelFeature(feature);
-            results.forEach((result) => {
-                process.stdout.write(JSON.stringify(result));
-                process.stdout.write('\n');
-            });
-        });
+if (verbose && argv.collection === 'largest')
+  console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling only the largest part.')
+
+if (verbose && argv.collection === 'combine')
+  console.error('Combining Multi* and GeometryCollection geometries together and creating one label to cover everything.')
+
+if (argv.includeMinzoom && typeof argv.includeMinzoom === "string" && argv.includeMinzoom.split('-').length !== 2) {
+  console.error('--min-zoom argument value should be in the format min-max where min is the smallest possible minzoom and max is the largest possible minzoom. (eg. 5-10 will only show the label from zoom 5 and will always show the label above zoom 10)')
+  process.exit(1)
+}
+
+function labelStream() {
+  return Combiner(geojsonStream.parse(),
+    through((feature, callback) => {
+      labelFeature(feature).forEach(feature => {
+        this.queue(feature)
+      })
+    }),
+    geojsonStream.stringify())
+}
+
+let featureCount = 0
+let firstFeature = true
+
+if (argv.inputFormat === 'geojsonseq') {
+  inputStream
+    .pipe(ndjson.parse())
+    .on('data', feature => {
+      const results = labelFeature(feature)
+      for (const result of results) {
+        if (argv.outputFormat === 'geojson' && !firstFeature) {
+          outputStream.write(',')
+        }
+        if (firstFeature) {
+          firstFeature = false
+        }
+
+        outputStream.write(JSON.stringify(result))
+        if (argv.outputFormat === 'geojsonseq') {
+          outputStream.write('\n')
+        }
+      }
+    })
+    .on('end', () => {
+      if (argv.outputFormat === 'geojson') {
+        outputStream.write(']}\n')
+      }
+    })
 } else {
-    inputStream
-        .pipe(polylabelStream())
-        .pipe(process.stdout);
+  inputStream
+    .pipe(labelStream())
+    .pipe(outputStream)
+    .on('end', () => {
+      if (argv.outputFormat === 'geojson') {
+        outputStream.write(']}\n')
+      }
+    })
 }
 
 function labelFeature(inputFeature) {
-    featureCount++;
-    let labeledFeatures = [];
-    process.stderr.write('...' + featureCount + "\r");
+  featureCount++
+  let labeledFeatures = []
+  process.stderr.write('...' + featureCount + "\r")
 
-    if (inputFeature.geometry) {
-        let flatFeatures;
-        const bbox = includeBbox ? turf.bbox(inputFeature) : undefined;
+  if (inputFeature.geometry) {
+    let flatFeatures
+    const bounds = argv.includeBbox ? bbox(inputFeature) : undefined
 
-        if (argv.style == 'explode') {
-            // Flatten MultiPoint, MultiPolygon, MultiLineString, and GeometryCollection geometries in GeoJSON files into simple non-complex geometries.
-            flatFeatures = flatten(inputFeature);
-        } else if (argv.style == 'largest') {
-            flatFeatures = [flatten(inputFeature).filter((f) => f.geometry.type == 'Polygon')
-                .reduce((prev, current) => (turf.area(prev) > turf.area(current)) ? prev : current)];
-        } else if (argv.style == 'combine') {
-            flatFeatures = [turf.convex(turf.explode(inputFeature))];
-        } else {
-            console.error('Unexpected usage of --style');
-            process.exit(1);
-        }
+    switch (argv.collection) {
+      case 'explode':
+        // Flatten MultiPoint, MultiPolygon, MultiLineString, and GeometryCollection geometries in GeoJSON files into simple non-complex geometries.
+        flatFeatures = flatten(inputFeature)
+        break
 
-        flatFeatures.forEach((feature) => {
-            if (feature.geometry && feature.geometry.type == 'Polygon') {
-                // find pole of inaccessibility
-                let labelPoint;
-                
-                if (argv.label == 'centroid') {
-                    labelPoint = turf.centroid(feature).geometry.coordinates.map((coordinate) => {
-                        return Number(coordinate.toFixed(5));
-                    });
-                } else if (argv.label == 'center-of-mass') {
-                    labelPoint = turf.centerOfMass(feature).geometry.coordinates.map((coordinate) => {
-                        return Number(coordinate.toFixed(5));
-                    });
-                } else {
-                    labelPoint = polylabel(feature.geometry.coordinates, precision).map((coordinate) => {
-                        return Number(coordinate.toFixed(5));
-                    });
-                }
+      case 'largest':
+        flatFeatures = [
+          flatten(inputFeature)
+          .filter(f => f?.geometry?.type === 'Polygon')
+          .reduce((prev, current) => (area(prev) > area(current)) ? prev : current)
+        ]
+        break
 
-                let labelProperties = inputFeature.properties;
-                let tippecanoeProperties;
-                if (bbox) {
-                    labelProperties._bbox = bbox;
-                }
+      case 'combine':
+        flatFeatures = [convex(explode(inputFeature))]
+        break
 
-                if (includeArea || includeMinzoom) {
-                    // calculate polygon area
-                    const area = turf.area(feature);
-
-                    if (includeArea) {
-                        labelProperties = Object.assign(
-                            {
-                                _area: Math.round(area),
-                            },
-                            labelProperties
-                        );
-                    }
-
-                    var minZoomMin;
-                    var minZoomMax;
-                    if (includeMinzoom && typeof includeMinzoom === "string") {
-                        minZoomMin = Number(includeMinzoom.split('-')[0]);
-                        minZoomMax = Number(includeMinzoom.split('-')[1]);
-                        if (verbose) console.error(`Using --include-minzoom value of ${minZoomMin}-${minZoomMax}`);
-                    }
-
-
-                    if (includeMinzoom) {
-                        tippecanoeProperties = {
-                            minzoom: areaToZoom(area, minZoomMin, minZoomMax)
-                        };
-                    }
-                }
-
-                // create a new GeoJSON feature from the pole of inaccessibility, the original properties plus an _area property
-                const labelFeature = turf.point(
-                    labelPoint,
-                    labelProperties
-                );
-
-                if ('id' in inputFeature) {
-                    labelFeature.id = inputFeature.id;
-                }
-
-                if (tippecanoeProperties) {
-                    labelFeature.tippecanoe = tippecanoeProperties;
-                }
-                labeledFeatures.push(labelFeature);
-            }else{
-                if (feature.geometry) {
-                    // warn the users that non Polygon features are ignored
-                    console.error('Skipping feature with geometry type ' + feature.geometry.type);
-                    console.error(JSON.stringify(feature, null, 2));
-                }else{
-                    // only print this when verbose enabled since it's not something a user would need to worry about
-                    if (verbose) console.error('Skipping feature with no geometry');
-                }
-            }
-        });
+      default:
+        console.error('Unexpected usage of --collection')
+        process.exit(1)
     }
 
-    return labeledFeatures;
+    flatFeatures.forEach((feature) => {
+      if (feature?.geometry?.type === 'Polygon') {
+        let centerFeature
+
+        switch (argv.method) {
+          case 'center':
+            centerFeature = center(feature)
+            break
+          case 'center-of-mass':
+            centerFeature = centerOfMass(feature)
+            break
+          case 'center-mean':
+            centerFeature = centerMean(feature)
+            break
+          case 'center-median':
+            centerFeature = centerMedian(feature)
+            break
+          case 'centroid':
+            centerFeature = centroid(feature)
+            break
+          case 'point-in-polygon':
+            centerFeature = pointOnFeature(feature)
+            break
+          case 'polylabel':
+          default:
+            centerFeature = {
+              geometry: {
+                coordinates: polylabel(feature.geometry.coordinates, argv.polylabelPrecision)
+              }
+            }
+            break
+        }
+
+        const labelPoint = centerFeature?.geometry?.coordinates?.map(coordinate => Number(coordinate.toFixed(argv.coordinatePrecision)))
+
+        let labelProperties = inputFeature.properties
+        let tippecanoeProperties
+        if (bounds) {
+          labelProperties._bbox = bounds.map(coordinate => Number(coordinate.toFixed(argv.coordinatePrecision)))
+        }
+
+        if (argv.includeArea || argv.includeMinzoom) {
+          // calculate polygon area
+          const polygonArea = area(feature)
+
+          if (argv.includeArea) {
+            labelProperties = Object.assign(
+              {
+                _area: Math.round(polygonArea),
+              },
+              labelProperties
+            )
+          }
+
+          var minZoomMin
+          var minZoomMax
+          if (argv.includeMinzoom && typeof argv.includeMinzoom === "string") {
+            minZoomMin = Number(argv.includeMinzoom.split('-')[0])
+            minZoomMax = Number(argv.includeMinzoom.split('-')[1])
+            if (verbose) console.error(`Using --include-minzoom value of ${minZoomMin}-${minZoomMax}`)
+          }
+
+          if (argv.includeMinzoom) {
+            tippecanoeProperties = {
+              minzoom: areaToZoom(polygonArea, minZoomMin, minZoomMax)
+            }
+          }
+        }
+
+        // create a new GeoJSON feature from the center point, the original properties plus any _area or _bbox properties
+        const labelFeature = point(
+          labelPoint,
+          labelProperties
+        )
+
+        if ('id' in inputFeature) {
+          labelFeature.id = inputFeature.id
+        }
+
+        if (tippecanoeProperties) {
+          labelFeature.tippecanoe = tippecanoeProperties
+        }
+        labeledFeatures.push(labelFeature)
+      }else{
+        if (feature.geometry) {
+          // warn the users that non Polygon features are ignored
+          console.error(`Skipping feature with geometry type ${feature.geometry.type}`)
+          console.error(JSON.stringify(feature, null, 2))
+        }else{
+          // only print this when verbose enabled since it's not something a user would need to worry about
+          if (verbose) console.error('Skipping feature with no geometry')
+        }
+      }
+    })
+  }
+
+  return labeledFeatures
 }
 
 function areaToZoom(area, min, max) {
-    return Math.max(min, Math.min(max, Math.round(13.9670060423554 - (0.428698399307115 * Math.log(area, 2)))));
+  return Math.max(min, Math.min(max, Math.round(13.9670060423554 - (0.428698399307115 * Math.log(area, 2)))))
 }

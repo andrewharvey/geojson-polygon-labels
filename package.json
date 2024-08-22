@@ -3,6 +3,7 @@
   "version": "1.5.0",
   "description": "Command line tool to generate point labels from GeoJSON polygons",
   "bin": "bin/geojson-polygon-labels",
+  "type": "module",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/andrewharvey/geojson-polygon-labels.git"
@@ -17,20 +18,25 @@
   },
   "homepage": "https://github.com/andrewharvey/geojson-polygon-labels#readme",
   "dependencies": {
-    "@turf/area": "^3.5.2",
-    "@turf/bbox": "^6.0.1",
-    "@turf/center-of-mass": "^4.5.2",
-    "@turf/centroid": "^4.5.2",
-    "@turf/convex": "^5.1.5",
-    "@turf/explode": "^5.1.5",
-    "@turf/helpers": "^3.5.3",
-    "@turf/meta": "^3.5.3",
-    "geojson-flatten": "^0.2.1",
-    "geojson-stream": "^0.0.1",
-    "ndjson": "^1.5.0",
-    "polylabel": "^1.0.2",
+    "@turf/area": "^7.0.0",
+    "@turf/bbox": "^7.0.0",
+    "@turf/bbox-polygon": "^7.0.0",
+    "@turf/center": "^7.0.0",
+    "@turf/center-mean": "^7.0.0",
+    "@turf/center-median": "^7.0.0",
+    "@turf/center-of-mass": "^7.0.0",
+    "@turf/centroid": "^7.0.0",
+    "@turf/convex": "^7.0.0",
+    "@turf/explode": "^7.0.0",
+    "@turf/helpers": "^7.0.0",
+    "@turf/meta": "^7.0.0",
+    "@turf/point-on-feature": "^7.0.0",
+    "geojson-flatten": "^1.1.1",
+    "geojson-stream": "^0.1.0",
+    "ndjson": "^2.0.0",
+    "polylabel": "^2.0.1",
     "stream-combiner": "^0.2.2",
     "through": "^2.3.8",
-    "yargs": "^7.0.2"
+    "yargs": "^17.7.2"
   }
 }

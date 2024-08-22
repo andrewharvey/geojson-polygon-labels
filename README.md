@@ -1,13 +1,17 @@
 # geojson-polygon-labels
 
-* Command line tool to generate point labels from GeoJSON polygons.
-* Point and Line features present in the input are ignored.
-* Supports GeometryCollections and MultiPolygons with options to label each part, only the largest part, or treat all parts as one.
-* Label placement algorithms are [polylabel](https://github.com/mapbox/polylabel) *pole of inaccessibility*, [centroid](http://turfjs.org/docs/#centroid) and [center of mass](http://turfjs.org/docs/#centerOfMass).
-* Source feature properties are retained.
-* Optionally adds an `_area` property (in m²)
-* Optionally adds a `_bbox` property (`[west, south, east, north]`)
-* Optionally adds a `tippecanoe` minzoom to each label
+Command line tool to generate point labels from GeoJSON polygons.
+
+Features include:
+
+ * Accepts input/writes ouput as a GeoJSON FeatureCollection or a sequence of line delimetered GeoJSON Features from/to a file or stdin/stdout.
+ * Point and Line features present in the input are ignored.
+ * Supports GeometryCollections and MultiPolygons with options to label each part, only the largest part, or treat all parts as one.
+ * Label placement algorithms are [polylabel](https://github.com/mapbox/polylabel) *pole of inaccessibility*, [centroid](http://turfjs.org/docs/#centroid) and [center of mass](http://turfjs.org/docs/#centerOfMass).
+ * Source feature properties are retained.
+ * Optionally adds an `_area` property (in m²)
+ * Optionally adds a `_bbox` property (`[west, south, east, north]`)
+ * Optionally adds a `tippecanoe` minzoom to each label
 
 ## Install
 
