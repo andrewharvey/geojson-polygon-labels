@@ -1,3 +1,15 @@
+## 2.0.0
+
+** Multiple breaking changes to the CLI arguments **
+
+* Migrate to a JS module
+* `--precision` option renamed to `--polylabel-precision`
+* New `--coordinate-precision` option
+* `--label` option renamed to `--method`
+* `--style` option renamed to `--collections`
+* `--ndjson` option renamed to `--input-format` and `--output-format`
+* New `--method` options `center`, `center-mean`, `center-median`, `point-in-polygon`.
+
 ## 1.5.0
 
 * Add `--include-bbox` option to add a bounding box of the source feature as a `_bbox` property on the label. (h/t [stevage](https://github.com/stevage))
