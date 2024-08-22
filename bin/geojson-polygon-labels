@@ -13,7 +13,7 @@ import { hideBin } from 'yargs/helpers'
 const yargs = _yargs(hideBin(process.argv))
 
 const argv = await yargs
-  .usage("$0 [--polylabel-precision=0.000001] [--coordinate-precision=5] [--include-area] [--include-bbox] [--include-minzoom=0-16] [--method=polylabel|center|center-of-mass|center-mean|center-median|centroid|point-in-polygon] [--collection=explode|largest|combine] [--input-format=geojson|geojsonseq] [--output-format=geojson|geojsonseq] [--verbose] [input.geojson] [output.geojson]")
+  .usage("$0 [--polylabel-precision=0.000001] [--coordinate-precision=5] [--include-area] [--include-bbox] [--include-minzoom=0-16] [--method=polylabel|center|center-of-mass|center-mean|center-median|centroid|point-in-polygon] [--collections=explode|largest|combine] [--input-format=geojson|geojsonseq] [--output-format=geojson|geojsonseq] [--verbose] [input.geojson] [output.geojson]")
   .option('verbose', {
     alias: 'v',
     boolean: true,
@@ -51,7 +51,7 @@ const argv = await yargs
     describe: 'Label placement method',
     default: 'polylabel'
   })
-  .option('collection', {
+  .option('collections', {
     alias: 'c',
     choices: ['explode', 'largest', 'combine'],
     describe: 'Method for handling GeometryCollections or Multi* Geometry types',
@@ -97,9 +97,8 @@ const argv = await yargs
 import polylabel from 'polylabel'
 import flatten from 'geojson-flatten'
 
-import { featureEach } from '@turf/meta'
 import { area } from '@turf/area'
-import { point, featureCollection } from '@turf/helpers'
+import { point } from '@turf/helpers'
 import { centroid } from '@turf/centroid'
 import { centerOfMass } from '@turf/center-of-mass'
 import { convex } from '@turf/convex'
@@ -143,13 +142,13 @@ if (argv.outputFormat === 'geojson') {
   outputStream.write('{"type": "FeatureCollection", "features": [')
 }
 
-if (verbose && argv.collection === 'explode')
+if (verbose && argv.collections === 'explode')
   console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling all parts.')
 
-if (verbose && argv.collection === 'largest')
+if (verbose && argv.collections === 'largest')
   console.error('Exploding Multi* and GeometryCollection geometries into flat geometries and labelling only the largest part.')
 
-if (verbose && argv.collection === 'combine')
+if (verbose && argv.collections === 'combine')
   console.error('Combining Multi* and GeometryCollection geometries together and creating one label to cover everything.')
 
 if (argv.includeMinzoom && typeof argv.includeMinzoom === "string" && argv.includeMinzoom.split('-').length !== 2) {
@@ -159,7 +158,7 @@ if (argv.includeMinzoom && typeof argv.includeMinzoom === "string" && argv.inclu
 
 function labelStream() {
   return Combiner(geojsonStream.parse(),
-    through((feature, callback) => {
+    through(feature => {
       labelFeature(feature).forEach(feature => {
         this.queue(feature)
       })
@@ -214,7 +213,7 @@ function labelFeature(inputFeature) {
     let flatFeatures
     const bounds = argv.includeBbox ? bbox(inputFeature) : undefined
 
-    switch (argv.collection) {
+    switch (argv.collections) {
       case 'explode':
         // Flatten MultiPoint, MultiPolygon, MultiLineString, and GeometryCollection geometries in GeoJSON files into simple non-complex geometries.
         flatFeatures = flatten(inputFeature)
@@ -233,7 +232,7 @@ function labelFeature(inputFeature) {
         break
 
       default:
-        console.error('Unexpected usage of --collection')
+        console.error('Unexpected usage of --collections')
         process.exit(1)
     }
 
