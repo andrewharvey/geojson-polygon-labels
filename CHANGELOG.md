@@ -1,3 +1,7 @@
+## 2.0.1
+
+* Only log progess to stderr if isTTY
+
 ## 2.0.0
 
 ** Multiple breaking changes to the CLI arguments **

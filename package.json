@@ -1,6 +1,6 @@
 {
   "name": "geojson-polygon-labels",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Command line tool to generate point labels from GeoJSON polygons",
   "bin": "bin/geojson-polygon-labels",
   "type": "module",
