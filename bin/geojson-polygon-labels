@@ -207,7 +207,9 @@ if (argv.inputFormat === 'geojsonseq') {
 function labelFeature(inputFeature) {
   featureCount++
   let labeledFeatures = []
-  process.stderr.write('...' + featureCount + "\r")
+  if (process.stderr.isTTY) {
+    process.stderr.write('...' + featureCount + "\r")
+  }
 
   if (inputFeature.geometry) {
     let flatFeatures
