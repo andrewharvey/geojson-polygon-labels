@@ -138,7 +138,12 @@ outputStream.on('error', err => {
   }
 })
 
-if (argv.outputFormat === 'geojson') {
+// geojsonStream.stringify() (used below for the geojson input path) already
+// wraps its output in a FeatureCollection, so only the geojsonseq input path
+// -- which writes features out manually -- needs this manual wrapper. Writing
+// it here unconditionally double-nests the FeatureCollection when
+// --input-format=geojson (the default) is combined with --output-format=geojson.
+if (argv.outputFormat === 'geojson' && argv.inputFormat === 'geojsonseq') {
   outputStream.write('{"type": "FeatureCollection", "features": [')
 }
 
@@ -158,7 +163,11 @@ if (argv.includeMinzoom && typeof argv.includeMinzoom === "string" && argv.inclu
 
 function labelStream() {
   return Combiner(geojsonStream.parse(),
-    through(feature => {
+    // must be a function expression, not an arrow function, so that `this`
+    // is bound to the through stream (arrow functions don't get their own
+    // `this`, so this.queue was previously undefined and every feature was
+    // silently dropped)
+    through(function (feature) {
       labelFeature(feature).forEach(feature => {
         this.queue(feature)
       })
@@ -197,11 +206,6 @@ if (argv.inputFormat === 'geojsonseq') {
   inputStream
     .pipe(labelStream())
     .pipe(outputStream)
-    .on('end', () => {
-      if (argv.outputFormat === 'geojson') {
-        outputStream.write(']}\n')
-      }
-    })
 }
 
 function labelFeature(inputFeature) {
